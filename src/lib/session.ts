@@ -15,14 +15,30 @@ export interface Feedback {
   next: string[];
 }
 
+/** One LLM assessment of a single scored answer — the raw material for M8's feedback synthesis. */
+export interface TopicNote {
+  day: number;
+  correctness: number; // 1-5
+  depth: number; // 1-5
+  usedConcreteExample: boolean;
+  note: string;
+}
+
 export interface Session {
   sessionId: string;
   candidate: Candidate;
   plan: InterviewPlan;
   topicIndex: number;
+  /** Planned (non-follow-up) questions asked so far within the current topic. Drives when to advance topics. */
+  topicQuestionIndex: number;
+  /** Follow-ups used on the current topic, capped at 2 in interview.ts regardless of what the model proposes. */
+  followUpsInTopic: number;
+  /** Whether the current topic has already used its one off-topic redirect. */
+  redirectedInTopic: boolean;
   questionsAsked: number;
   askedDays: number[];
   transcript: Turn[];
+  notes: TopicNote[];
   phase: "questioning" | "done";
   feedback?: Feedback;
   createdAt: number;

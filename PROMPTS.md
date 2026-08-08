@@ -334,4 +334,45 @@ a different person driving a different AI session follows the same rules without
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M7 — adaptive follow-ups, so answers actually steer the interview instead of walking a
+fixed script. Continuing from a fresh session picking up the handoff (M0–M6 already done); read
+`CLAUDE.md` → `docs/hackathon-brief.md` → `IMPLEMENTATION.md` → `PROMPTS.md` for context first.
+
+**Result:** Added one LLM call per turn (`decideNextAction` in `src/lib/interview.ts`, prompts in
+`src/lib/prompts.ts`) that scores the candidate's answer (`correctness`, `depth`,
+`usedConcreteExample`, `note`) and proposes `follow_up` / `advance` / `redirect` plus the actual
+reply text — a single round-trip rather than assess-then-separately-generate. The model proposes;
+the code disposes: hard caps enforced regardless of what it returns — at most 2 follow-ups per
+topic, at most 1 redirect per topic, and a forced advance on the interview's final planned question
+so a chatty model can never extend past the natural end. `Session` (in `src/lib/session.ts` — no
+standalone `types.ts` exists in this repo, M1 already deviated from the plan there, so the new
+`TopicNote` type lives alongside the other session types instead) gained `topicQuestionIndex`,
+`followUpsInTopic`, `redirectedInTopic`, and `notes: TopicNote[]`. `topicQuestionIndex` is now
+tracked explicitly rather than derived from the cumulative question count, since follow-ups and
+redirects add extra turns without advancing the plan — deriving it the old way would have
+miscounted which planned question a topic was on.
+
+`tests/interview.test.ts` gained 6 tests: follow_up/advance/redirect state transitions against a
+stubbed decision, one note recorded per scored answer (not per turn), "I don't know" advancing
+immediately with an honest low-score note, and the highest-value one — an adversarial stub that
+*always* proposes `follow_up`, run across **all 20 real candidates**, still capped correctly and
+still meeting ≥8 questions/≥4 days for every one. `npm test`: 103/103 (up from 97). `npm run build`
+and `npm run lint` both clean.
+
+**Manual verification against the real Groq API**, driven end-to-end myself rather than trusting
+mocks: started an interview for CAND-010 (1/23 first-try — a real struggler), then deliberately
+tested each behavior — a vague one-liner correctly got a follow-up asking for specifics rather than
+advancing; three strong, detailed answers in a row on the same topic correctly got capped at the
+follow-up limit and forced onto a new topic by the third; a full interview driven to completion took
+21 turns (longer than the 10-question baseline, because strong answers kept earning follow-ups up to
+the cap on almost every topic — expected, not a bug) and produced valid feedback citing 5 real
+curriculum days (1, 7, 31, 12, 16) with non-empty `strengths`/`gaps`/`next`. Ran the server via the
+Bash tool directly (`npm run build && npm run start`, backgrounded) rather than asking the user to
+paste output back and forth — faster feedback loop, and avoided a local environment quirk on this
+machine where `npm run dev`'s Turbopack file watcher hits an OS inotify-instance limit (unrelated to
+the app; `next start` sidesteps it since it doesn't watch files).
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

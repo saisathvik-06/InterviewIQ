@@ -31,9 +31,13 @@ function makeSession(sessionId: string): Session {
     },
     plan: { topics: [], totalQuestions: 8 },
     topicIndex: 0,
+    topicQuestionIndex: 0,
+    followUpsInTopic: 0,
+    redirectedInTopic: false,
     questionsAsked: 0,
     askedDays: [],
     transcript: [],
+    notes: [],
     phase: "questioning",
     createdAt: Date.now(),
   };
