@@ -95,3 +95,45 @@ export function decisionUserPrompt(params: {
   );
   return lines.join("\n");
 }
+
+export const feedbackResponseSchema = z.object({
+  summary: z.string().min(1),
+  strengths: z.array(z.string().min(1)).min(1),
+  gaps: z.array(z.string().min(1)).min(1),
+  next: z.array(z.string().min(1)).min(1),
+});
+
+export function feedbackSystemPrompt(): string {
+  return [
+    "You are writing structured post-interview feedback for a technical interview that just concluded.",
+    "Ground every point in the specific days and answers actually discussed in this interview — never invent a day, topic, strength, or gap that wasn't part of it.",
+    'Be honest: if answers were weak, vague, or the candidate said "I don\'t know" often, say so plainly rather than inventing praise.',
+    "Keep each array concise — 3 to 5 bullet points, each one concrete and actionable, not generic advice.",
+    'Respond with a single JSON object of the exact shape {"summary":"...","strengths":["..."],"gaps":["..."],"next":["..."]} and nothing else — no markdown, no code fences, no extra keys.',
+  ].join(" ");
+}
+
+export function feedbackUserPrompt(params: {
+  candidateName: string;
+  jobRole: string;
+  seniorityTier: string;
+  topics: { day: number; title: string; signal: string; intent: string }[];
+  notes: { day: number; correctness: number; depth: number; usedConcreteExample: boolean; note: string }[];
+  askedDays: number[];
+}): string {
+  const lines = [
+    `Candidate: ${params.candidateName}, ${params.jobRole} (${params.seniorityTier}-level experience).`,
+    `Days actually covered in this interview: ${params.askedDays.join(", ")}. Only ever reference days from this list — never mention any other day.`,
+    "Topics discussed, with why each was chosen and the candidate's platform signal going in:",
+    ...params.topics.map((t) => `- Day ${t.day} (${t.title}), platform signal: ${t.signal}. Why chosen: ${t.intent}`),
+    "Per-answer assessments recorded live during the interview:",
+    ...(params.notes.length > 0
+      ? params.notes.map(
+          (n, i) =>
+            `${i + 1}. Day ${n.day} — correctness ${n.correctness}/5, depth ${n.depth}/5, used a concrete example: ${n.usedConcreteExample}. ${n.note}`,
+        )
+      : ["(No answers were substantively scored — the candidate gave few or no real answers.)"]),
+    "Write the final structured feedback now: an honest summary, 3-5 strengths grounded in specific days/answers, 3-5 gaps (including any failed or skipped topics worth revisiting), and 3-5 concrete next steps tied to curriculum days.",
+  ];
+  return lines.join("\n");
+}

@@ -37,6 +37,11 @@ function isDecisionCall(messages: { content: string }[]): boolean {
   return (messages[0]?.content ?? "").includes("evaluating a candidate's spoken answer");
 }
 
+/** The feedback system prompt contains this phrase — used to route the mock. */
+function isFeedbackCall(messages: { content: string }[]): boolean {
+  return (messages[0]?.content ?? "").includes("writing structured post-interview feedback");
+}
+
 /** Routes mockCreate by call kind: every "assess the answer" call gets `action`, every "ask a question" call gets a unique question. */
 function installAdaptiveMock(action: "follow_up" | "advance" | "redirect", assessment: Record<string, unknown> = {}) {
   let questionCounter = 0;
@@ -282,5 +287,58 @@ describe("interview state machine — adaptive follow-ups (M7)", () => {
       expect(session.questionsAsked).toBeGreaterThanOrEqual(8);
       expect(new Set(session.askedDays).size).toBeGreaterThanOrEqual(4);
     }
+  });
+});
+
+describe("interview + feedback generation (M8)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    mockCreate.mockReset();
+  });
+
+  it("generates feedback once via the LLM and caches it — a second done-turn doesn't call the model again", async () => {
+    vi.stubEnv("GROQ_API_KEY", "fake-key-for-test");
+    let feedbackCallCount = 0;
+    let questionCounter = 0;
+    mockCreate.mockImplementation(async (params: { messages: { content: string }[] }) => {
+      if (isFeedbackCall(params.messages)) {
+        feedbackCallCount++;
+        return chatResponse({
+          summary: "Solid overall performance across the interview.",
+          strengths: ["Answered clearly with concrete detail."],
+          gaps: ["Some areas could go deeper."],
+          next: ["Keep practicing the topics covered."],
+        });
+      }
+      if (isDecisionCall(params.messages)) {
+        return chatResponse({
+          assessment: { correctness: 4, depth: 4, usedConcreteExample: true, note: "solid" },
+          action: "advance",
+          reply: "Good, moving on.",
+        });
+      }
+      questionCounter++;
+      return chatResponse({ question: `Mocked question #${questionCounter}` });
+    });
+
+    const candidate = getCandidateById("CAND-013")!;
+    let session: Session = (await startInterview(candidate, "m8-cache-test")).session;
+    let done = false;
+    let guard = 0;
+    while (!done) {
+      if (++guard > 100) throw new Error("no termination");
+      const result = await nextTurn(session, DEFAULT_ANSWER);
+      session = result.session;
+      done = result.done;
+    }
+
+    expect(feedbackCallCount).toBe(1);
+    const feedbackAfterFirstDone = session.feedback;
+    const callsAfterFirstDone = mockCreate.mock.calls.length;
+
+    const again = await nextTurn(session, "anything");
+    expect(again.feedback).toEqual(feedbackAfterFirstDone);
+    expect(feedbackCallCount).toBe(1);
+    expect(mockCreate.mock.calls.length).toBe(callsAfterFirstDone);
   });
 });

@@ -375,4 +375,45 @@ the app; `next start` sidesteps it since it doesn't watch files).
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M8 — LLM feedback synthesis, so the final payload becomes genuinely useful instead of a
+template fill. Build on M7's accumulated per-answer notes.
+
+**Result:** Added `buildFeedback(session)` in `src/lib/feedback.ts` — one LLM call fed the M7 notes
+(correctness, depth, concrete-example flag, per-answer note) plus each plan topic's `intent`,
+instructed to be honest about weak performance rather than invent praise and to cap each array at
+3-5 bullets. New prompts in `src/lib/prompts.ts` (`feedbackSystemPrompt`/`feedbackUserPrompt`/
+`feedbackResponseSchema`). The one edge case worth real engineering: a model can cite a day that was
+never actually discussed, which would be worse than generic-but-honest fallback feedback — so every
+returned string is regex-scanned for "day N" mentions and checked against `session.askedDays`; if
+anything doesn't match, the whole result is discarded in favour of `buildDeterministicFeedback`
+(M5's fallback, unchanged) rather than risk fabrication reaching the candidate. Same fallback on any
+LLM failure or empty-array response. `src/lib/interview.ts` changed by one line: the completion
+branch now awaits `buildFeedback` instead of calling the deterministic version directly; caching was
+already structurally guaranteed by M5 (`session.feedback` set once at the `done` transition, replayed
+on subsequent turns) so no change was needed there.
+
+`tests/feedback.test.ts` (new, 7 tests): spec-shape validation, grounded-day-citation check, fallback
+on LLM failure, fallback specifically on an invented-day response, fallback on empty arrays, bullet
+capping at 5, and all 20 real candidates producing valid feedback through the mocked LLM path.
+`tests/interview.test.ts` gained one test asserting the feedback-generating call fires exactly once
+even across two `done`-turns. `npm test`: 111/111 (up from 103). `npm run build` and `npm run lint`
+both clean.
+
+**Manual verification against the real Groq API**, driven end-to-end myself: ran CAND-010 (a real
+struggler, 1/23 first-try) through a 16-turn interview with a deliberate mix of "I don't know" and
+vague non-answers. The resulting feedback correctly cited only real curriculum days actually covered
+(1, 7, 31, 12, 16) and was honest about the weak performance — "struggled with providing concrete
+examples and specificity in answers across all topics" — rather than inventing strengths. Repeating
+the same `done` request afterward returned byte-identical feedback, confirming the cache. Server run
+via the Bash tool directly (`npm run build && npm run start`, backgrounded), same as M7, for the same
+Turbopack/inotify reason.
+
+**Clarification from Sai Sathvik:** the hackathon rubric's "how well you steered the AI" criterion
+refers to how well the *builder* directs their AI coding assistant (i.e. this Claude Code session),
+not to the prompt-engineering quality of the interview agent's own LLM calls. Noted for how the
+project gets framed/discussed at submission, not a code change.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

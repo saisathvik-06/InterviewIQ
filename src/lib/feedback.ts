@@ -1,4 +1,9 @@
+import { analyseCandidate } from "@/lib/analysis";
+import { callJSON, isLlmConfigured } from "@/lib/llm";
+import { feedbackResponseSchema, feedbackSystemPrompt, feedbackUserPrompt } from "@/lib/prompts";
 import type { Feedback, Session } from "@/lib/session";
+
+const MAX_BULLETS = 5;
 
 /**
  * Builds feedback purely from the plan's topic signals (already known before
@@ -49,4 +54,57 @@ export function buildDeterministicFeedback(session: Session): Feedback {
     gaps: gaps.length > 0 ? gaps.slice(0, 5) : ["No significant gaps identified from platform history."],
     next: next.slice(0, 5),
   };
+}
+
+/** Every "day N" mention in a piece of feedback text, so it can be checked against what was actually asked. */
+function referencedDays(text: string): number[] {
+  return [...text.matchAll(/day\s+(\d{1,2})/gi)].map((m) => Number(m[1]));
+}
+
+function onlyReferencesAskedDays(feedback: { summary: string; strengths: string[]; gaps: string[]; next: string[] }, askedDays: number[]): boolean {
+  const allText = [feedback.summary, ...feedback.strengths, ...feedback.gaps, ...feedback.next];
+  return allText.every((text) => referencedDays(text).every((day) => askedDays.includes(day)));
+}
+
+/**
+ * Synthesises feedback from the notes accumulated live during the interview
+ * (M7's per-answer assessments) plus the plan's topic intents. Grounded in
+ * evidence, not a re-read of the raw transcript. Falls back to
+ * `buildDeterministicFeedback` verbatim on any LLM failure or if the model
+ * invents a day that was never actually discussed — an invented day is worse
+ * than a generic-but-honest fallback.
+ */
+export async function buildFeedback(session: Session): Promise<Feedback> {
+  if (!isLlmConfigured()) return buildDeterministicFeedback(session);
+
+  try {
+    const seniorityTier = analyseCandidate(session.candidate).seniorityTier;
+    const result = await callJSON({
+      system: feedbackSystemPrompt(),
+      user: feedbackUserPrompt({
+        candidateName: session.candidate.member.name,
+        jobRole: session.candidate.member.jobRole,
+        seniorityTier,
+        topics: session.plan.topics.map((t) => ({ day: t.day, title: t.title, signal: t.signal, intent: t.intent })),
+        notes: session.notes,
+        askedDays: session.askedDays,
+      }),
+      schema: feedbackResponseSchema,
+    });
+
+    const feedback: Feedback = {
+      summary: result.summary,
+      strengths: result.strengths.slice(0, MAX_BULLETS),
+      gaps: result.gaps.slice(0, MAX_BULLETS),
+      next: result.next.slice(0, MAX_BULLETS),
+    };
+
+    if (!onlyReferencesAskedDays(feedback, session.askedDays)) {
+      return buildDeterministicFeedback(session);
+    }
+
+    return feedback;
+  } catch {
+    return buildDeterministicFeedback(session);
+  }
 }

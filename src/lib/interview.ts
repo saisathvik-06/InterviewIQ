@@ -1,6 +1,6 @@
 import { analyseCandidate, type SeniorityTier } from "@/lib/analysis";
 import type { Candidate } from "@/lib/candidate";
-import { buildDeterministicFeedback } from "@/lib/feedback";
+import { buildFeedback } from "@/lib/feedback";
 import { callJSON, isLlmConfigured } from "@/lib/llm";
 import { buildPlan, type PlanTopic } from "@/lib/planner";
 import {
@@ -257,7 +257,7 @@ async function advanceTopic(session: Session): Promise<TurnResult> {
   const nextTopicIndex = session.topicIndex + 1;
   if (nextTopicIndex >= plan.topics.length) {
     const doneSession: Session = { ...session, phase: "done" };
-    const feedback = buildDeterministicFeedback(doneSession);
+    const feedback = await buildFeedback(doneSession);
     const reply = "Interview completed. Thanks for walking me through all of that.";
     const finalSession = withTurn({ ...doneSession, feedback }, { role: "agent", content: reply });
     return { session: finalSession, reply, done: true, feedback };

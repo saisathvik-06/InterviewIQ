@@ -81,7 +81,7 @@ in `PROMPTS.md`, per-commit.
 | 5 | **API route, deterministic** | 90 min | **Full spec compliance, no LLM** | ✅ [`bccce17`](https://github.com/saisathvik-06/InterviewIQ/commit/bccce17) |
 | 6 | Groq integration | 60 min | Real questions, fallback intact | ✅ [`b6a2286`](https://github.com/saisathvik-06/InterviewIQ/commit/b6a2286) |
 | 7 | Adaptive follow-ups | 75 min | Answers actually steer the interview | ✅ [`eefcb25`](https://github.com/saisathvik-06/InterviewIQ/commit/eefcb25) |
-| 8 | LLM feedback synthesis | 60 min | Personalised structured feedback | ⬜ |
+| 8 | LLM feedback synthesis | 60 min | Personalised structured feedback | ✅ [`PENDING`](https://github.com/saisathvik-06/InterviewIQ/commit/PENDING) |
 | 9 | Guardrails + resilience | 60 min | Survives abuse, rate limits, junk input | ⬜ |
 | 10 | Chat frontend | 75 min | Usable UI at `/` | ⬜ |
 | 11 | Polish pass | 75 min | Something judges enjoy looking at | ⬜ |
