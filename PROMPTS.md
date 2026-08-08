@@ -232,4 +232,51 @@ object still works correctly as a constructor call.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M5 — the pivotal milestone: implement `POST /api/interview` per the technical spec,
+fully working with zero LLM calls.
+
+**Result:** Wrote `src/lib/interview.ts` (pure state machine: `startInterview`, `nextTurn`, and an
+internal `advance` step — every function returns a new session rather than mutating the input, so
+the whole module is genuinely pure, not just "pure-ish"), `src/lib/feedback.ts`
+(`buildDeterministicFeedback`, built from the plan's already-known topic signals rather than reading
+transcript content, since there's no LLM yet to judge answer quality), and
+`src/app/api/interview/route.ts` (the actual `POST` handler). Added one small additive field to
+`Session` from M4 — `awaitingReprompt?: boolean` — needed so a blank answer gets re-prompted exactly
+once before the interview moves on, instead of stalling forever.
+
+Deterministic questions are template-generated from curriculum objectives:
+`On day {N} ("{title}"), one of the objectives was to {objective}. Walk me through that.` — this is
+also the exact fallback a later milestone will use if an LLM call fails.
+
+Route handling: discriminates start vs. turn by checking whether `candidate` or `message` is present
+in the body (rejecting 400 if both or neither are), validates each shape with zod, and returns a
+uniform `{reply, done}` / `{reply, done, feedback}` shape matching the spec key-for-key. Restarting
+an existing `sessionId` is idempotent (just overwrites). An unknown `sessionId` on a turn returns 404
+with a plain-language reply rather than crashing. `GET` on the route isn't handled explicitly —
+Next.js's App Router auto-returns 405 for any HTTP method without an exported handler, so no code
+was needed for that edge case (verified by inspection of Next's routing docs, not a dedicated
+automated test — doing so would require running an actual server rather than a unit-level import).
+
+`tests/interview.test.ts` (16 tests): the full-loop-across-all-20-real-candidates test (the one that
+actually proves the ≥8/≥4 spec claim end to end, not just at the planning stage), plus behavioural
+tests — first question bundled into the welcome reply, `done` flips exactly once, transcript
+alternates agent/candidate, blank-answer re-prompt-then-advance, cached feedback replay after
+completion, long-answer truncation.
+
+`tests/route.contract.test.ts` (10 tests): drives the real exported `POST` function with constructed
+`Request` objects (no server process, no mocking of Next internals) — start/turn/full-completion
+response shapes match the spec exactly including "no extra top-level keys", plus every 400/404 edge
+case (both fields present, neither present, non-string message, invalid candidate shape, malformed
+JSON, unknown session).
+
+**Manual verification beyond the automated suite:** ran `npm run dev` and hit the live local server
+with `curl` for a real start request and a real turn — confirmed actual HTTP responses, not just
+in-process function calls. Killed the dev server afterward.
+
+`npm run build` (now shows `/api/interview` as a registered dynamic route), `npm test` (87/87),
+`npm run lint` all clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

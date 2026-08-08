@@ -26,6 +26,8 @@ export interface Session {
   phase: "questioning" | "done";
   feedback?: Feedback;
   createdAt: number;
+  /** Set after a blank answer, so the next blank answer advances instead of re-prompting forever. */
+  awaitingReprompt?: boolean;
 }
 
 export interface SessionStore {
