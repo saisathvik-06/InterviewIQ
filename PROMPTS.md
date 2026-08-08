@@ -126,4 +126,27 @@ instruction from the user, so it was surfaced for a decision rather than acted o
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** "proceed" — go ahead with M1 (data layer) per `IMPLEMENTATION.md`.
+
+**Result:** Installed `zod`. Copied `curriculum.json`/`candidates.json` into `data/` and
+`technical-spec.md` into `docs/` (originals still in Downloads). Wrote `src/lib/curriculum.ts` and
+`src/lib/candidate.ts` with zod schemas, static JSON imports, and lookup helpers (`getDay`,
+`getModuleForDay`, `getAllCandidates`, `getCandidateById`, `isSkipped`). Deviated from the file list
+in `IMPLEMENTATION.md` §M1 by skipping a separate `types.ts` — inferring types directly from the zod
+schemas (`z.infer<...>`) in the two lib files avoids maintaining the same shape twice.
+
+Wrote `tests/curriculum.test.ts` and `tests/candidate.test.ts` (14 tests total): 31 contiguous days,
+8 contiguous modules covering 1–31 exactly, every mission across all 20 real candidates resolves to
+a real curriculum day, skip/attempt classification, and rejection of malformed candidates (missing
+member, mission with neither `passed` nor `skipped`, negative attempts).
+
+Also fixed a config gap before the tests could even run: `vitest.config.mts` didn't know about the
+`@/*` path alias that `tsconfig.json` defines for Next.js, so `@/lib/...` imports in test files
+would have failed to resolve. Added a matching `resolve.alias` entry.
+
+`npm test` → 14/14 pass. `npm run build` → clean. `npm run lint` running.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

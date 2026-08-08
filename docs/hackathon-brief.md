@@ -14,9 +14,9 @@ Vercel — every push to `main` auto-redeploys)
 `IMPLEMENTATION.md`. Do not commit or push until Sai Sathvik has tested the milestone locally and
 explicitly says to commit. Do not start the next milestone until told to.
 
-**Source files still to be brought into the repo** (currently in `C:\Users\Sai Sathvik\Downloads\`):
-`curriculum.json`, `candidates.json`, `technical-spec.md` — planned for Milestone 1. The full API
-contract from that spec is reproduced in §7 below, so nothing is lost until they're copied in.
+Source files (`data/curriculum.json`, `data/candidates.json`, `docs/technical-spec.md`) are in the
+repo as of Milestone 1, loaded through typed/validated loaders in `src/lib/curriculum.ts` and
+`src/lib/candidate.ts`.
 
 ---
 
