@@ -202,4 +202,34 @@ against `assertValidPlan` directly (too few questions, too few distinct days, va
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M4 (session store). Also given a new standing instruction: after every milestone, report
+what was implemented and how to verify it, calling out anything better checked manually.
+
+**Result:** Installed `@upstash/redis`. Wrote `src/lib/session.ts`: `Session`/`Turn`/`Feedback`
+types, a `SessionStore` interface with `MemoryStore` and `RedisStore` implementations, and a
+`FallbackStore` wrapper that catches any primary-store failure and transparently degrades to the
+shared in-memory store rather than throwing. `getStore()` picks Redis-backed (wrapped in the
+fallback) when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set, plain memory otherwise —
+checked fresh on every call, so the app runs with zero Redis setup. 2-hour TTL on writes. Deviated
+from `IMPLEMENTATION.md` §M4's exact `Session` shape by omitting the `notes: TopicNote[]` field —
+`TopicNote`'s shape isn't decided until M7 needs it, so designing it now would be exactly the kind
+of speculative-future-field the project's own conventions warn against; it's a cheap additive change
+later. Added an "Environment variables" section to `README.md`.
+
+Wrote `tests/session.test.ts` (5 tests, 51 total): round-trip save/load, unknown-session returns
+`null`, transcript ordering survives repeated saves, and — using a mocked `@upstash/redis` client
+that always rejects, so no real network touches the test run — two tests proving the outage-fallback
+actually works (`get()` degrades to `null` instead of throwing; `set()` degrades to the memory store
+and a later `get()` finds the data there).
+
+Hit one mocking bug: `vi.fn().mockImplementation(() => ({...}))` fails with "is not a constructor"
+when the mocked class is invoked via `new Redis(...)`, because arrow functions have no
+`[[Construct]]`. Fixed by mocking with a plain `function` instead — a function that returns an
+object still works correctly as a constructor call.
+
+`npm run build`, `npm test` (51/51), `npm run lint` all clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

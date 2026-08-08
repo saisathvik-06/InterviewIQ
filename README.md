@@ -17,6 +17,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Environment variables
+
+Copy `.env.local.example` to `.env.local` and fill in what you have. Both are optional for local
+dev — the app falls back gracefully without them:
+
+| Variable | Required for | Without it |
+|---|---|---|
+| `GROQ_API_KEY` | LLM-generated questions/feedback | Falls back to a deterministic, template-based interview (added in a later milestone) |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Session state surviving across serverless requests | Falls back to an in-memory store — fine for local dev, not for a multi-instance production deploy |
+
 ## Tests
 
 ```bash
