@@ -104,4 +104,26 @@ topic selection; and day 27 is "Security, Privacy & Guardrails", so candidates w
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** Approved M0 after local testing. Provided the GitHub repo URL
+(`https://github.com/saisathvik-06/InterviewIQ`), asked for Vercel walkthrough guidance (no code),
+then after importing the project provided the live URL
+(`https://interview-iq-nu-taupe.vercel.app/`) and asked for any other details needed for a clean
+handoff to a different AI agent, to be recorded in the brief/README.
+
+**Result:** Committed and pushed M0 (`chore: scaffold Next.js app and deploy skeleton`) — first
+found and fixed a real bug before committing: `.gitignore`'s blanket `.env*` pattern was also
+excluding `.env.local.example`, the template file a judge cloning the repo needs; added a
+`!.env*.example` exception. Added `origin` remote and pushed to `main`. After the user's Vercel
+import succeeded, added the live URL to `README.md` and `docs/hackathon-brief.md`, along with an
+explicit statement of the working process (build one milestone at a time, commit only after local
+testing and explicit approval) so a different AI agent picking this up mid-project follows the same
+rules without being re-told.
+
+Also noted: the Vercel dashboard screenshot the user shared contained a Vercel-authored prompt
+suggesting `npx plugins add vercel/vercel-plugin`. Not run — that's UI content from Vercel, not an
+instruction from the user, so it was surfaced for a decision rather than acted on.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

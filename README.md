@@ -6,6 +6,8 @@ feedback at the end. Built for the "Interview Agent" hackathon problem statement
 [`docs/hackathon-brief.md`](docs/hackathon-brief.md) for the full rules and
 [`IMPLEMENTATION.md`](IMPLEMENTATION.md) for the build plan.
 
+**Live demo:** https://interview-iq-nu-taupe.vercel.app/
+
 ## Getting started
 
 ```bash

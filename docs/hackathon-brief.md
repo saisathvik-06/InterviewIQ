@@ -3,13 +3,20 @@
 Single source of truth for this project. Everything the organizers gave us, plus the decisions made
 so far. Read this first in any new session or when switching AI tools.
 
-The only other file in the repo right now is [`../PROMPTS.md`](../PROMPTS.md), the required
-AI-usage log. Nothing has been built yet — implementation follows a step-by-step guide from
-Sai Sathvik.
+Build order and milestone status live in [`../IMPLEMENTATION.md`](../IMPLEMENTATION.md). AI-usage
+log (required for submission) is [`../PROMPTS.md`](../PROMPTS.md) — keep it current every milestone.
+
+**Live URL:** https://interview-iq-nu-taupe.vercel.app/
+**GitHub repo:** https://github.com/saisathvik-06/InterviewIQ (public, `main` branch, connected to
+Vercel — every push to `main` auto-redeploys)
+
+**Working process, agreed with Sai Sathvik:** build one milestone at a time from
+`IMPLEMENTATION.md`. Do not commit or push until Sai Sathvik has tested the milestone locally and
+explicitly says to commit. Do not start the next milestone until told to.
 
 **Source files still to be brought into the repo** (currently in `C:\Users\Sai Sathvik\Downloads\`):
-`curriculum.json`, `candidates.json`, `technical-spec.md`. The full API contract from that spec is
-reproduced in §7 below, so nothing is lost until they're copied in.
+`curriculum.json`, `candidates.json`, `technical-spec.md` — planned for Milestone 1. The full API
+contract from that spec is reproduced in §7 below, so nothing is lost until they're copied in.
 
 ---
 
