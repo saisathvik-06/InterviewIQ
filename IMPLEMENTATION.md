@@ -83,7 +83,7 @@ in `PROMPTS.md`, per-commit.
 | 7 | Adaptive follow-ups | 75 min | Answers actually steer the interview | ✅ [`eefcb25`](https://github.com/saisathvik-06/InterviewIQ/commit/eefcb25) |
 | 8 | LLM feedback synthesis | 60 min | Personalised structured feedback | ✅ [`92fb48e`](https://github.com/saisathvik-06/InterviewIQ/commit/92fb48e) |
 | 9 | Guardrails + resilience | 60 min | Survives abuse, rate limits, junk input | ✅ [`d046ba6`](https://github.com/saisathvik-06/InterviewIQ/commit/d046ba6) |
-| 10 | Chat frontend | 75 min | Usable UI at `/` | ✅ [`PENDING`](https://github.com/saisathvik-06/InterviewIQ/commit/PENDING) |
+| 10 | Chat frontend | 75 min | Usable UI at `/` | ✅ [`1ff7577`](https://github.com/saisathvik-06/InterviewIQ/commit/1ff7577) |
 | 11 | Polish pass | 75 min | Something judges enjoy looking at | ⬜ |
 | 12 | Docs + submission | 45 min | Submitted | ⬜ |
 
