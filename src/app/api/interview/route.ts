@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return badRequest(`Invalid start request: ${parsed.error.issues.map((i) => i.message).join("; ")}`);
     }
     const { sessionId, candidate } = parsed.data;
-    const result = startInterview(candidate, sessionId);
+    const result = await startInterview(candidate, sessionId);
     await store.set(result.session);
     return NextResponse.json({ reply: result.reply, done: result.done });
   }
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = nextTurn(session, message);
+  const result = await nextTurn(session, message);
   await store.set(result.session);
 
   if (result.done) {

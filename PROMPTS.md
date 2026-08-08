@@ -279,4 +279,42 @@ in-process function calls. Killed the dev server afterward.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M6 — Groq integration for real, naturally-phrased questions on top of M5's guaranteed
+skeleton, with the deterministic fallback staying intact.
+
+**Result:** Installed `openai` (pointed at Groq's OpenAI-compatible endpoint,
+`llama-3.3-70b-versatile`). Wrote `src/lib/llm.ts` (`callJSON<T>`: requests JSON mode, strips
+markdown fences defensively, validates against a zod schema, retries once telling the model what was
+wrong, then throws a typed `LlmError` — every failure mode funnels through one exception type so
+callers have exactly one thing to catch) and `src/lib/prompts.ts` (all prompt text, isolated per the
+implementation plan's own reasoning: "how well you steered the AI" is easier to judge when the
+steering is readable in one file).
+
+Updated `src/lib/interview.ts`: `startInterview`/`nextTurn`/`advance` are now `async` and call Groq
+for question phrasing, falling back to the exact M5 deterministic template on *any* failure —
+missing key, network error, or a Jaccard-similarity check (≥0.6 word overlap) catching a question
+too similar to one already asked, which gets one retry with the prior questions listed before
+falling back rather than risking a loop. Updated `src/app/api/interview/route.ts` to `await` the now
+asynchronous calls.
+
+`tests/llm.test.ts` (9 new tests): valid JSON, code-fence stripping, invalid-JSON retry-then-recover,
+invalid-JSON-twice throws, schema-mismatch retry-then-recover, schema-mismatch-twice throws,
+network/429-style failure throws without a second attempt, and the missing-key fast-path never
+touches the mocked client at all. `tests/interview.test.ts` gained a test with `GROQ_API_KEY` stubbed
+but the `openai` client mocked to always reject — full interview still completes and still meets
+≥8/≥4 via fallback. All existing `interview.test.ts` assertions updated to `await` the now-async
+functions.
+
+**Manual verification against the real Groq API** (using the credentials already in `.env.local`,
+not mocks): ran the dev server and sent a real start request for CAND-010 — got back an actual
+Groq-generated question referencing his name, seniority ("extensive experience as an IT Support
+Specialist"), and day 1 specifically (correctly the one topic in his profile that isn't failed or
+skipped). First request took 3.7s, but that included Next dev-mode compiling the route on first hit;
+a warm follow-up turn came back in 0.885s — comfortably under the ~3s target.
+
+`npm run build`, `npm test` (97/97), `npm run lint` all clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

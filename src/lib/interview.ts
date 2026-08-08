@@ -1,10 +1,13 @@
-import { analyseCandidate } from "@/lib/analysis";
+import { analyseCandidate, type SeniorityTier } from "@/lib/analysis";
 import type { Candidate } from "@/lib/candidate";
 import { buildDeterministicFeedback } from "@/lib/feedback";
+import { callJSON, isLlmConfigured } from "@/lib/llm";
 import { buildPlan, type InterviewPlan, type PlanTopic } from "@/lib/planner";
+import { questionResponseSchema, questionSystemPrompt, questionUserPrompt } from "@/lib/prompts";
 import type { Feedback, Session, Turn } from "@/lib/session";
 
 const MAX_ANSWER_LENGTH = 4000;
+const SIMILARITY_THRESHOLD = 0.6;
 
 export interface TurnResult {
   session: Session;
@@ -17,10 +20,95 @@ function lowerFirst(s: string): string {
   return s.length === 0 ? s : s.charAt(0).toLowerCase() + s.slice(1);
 }
 
-/** Deterministic template question. Also the exact fallback used when a later LLM call fails. */
-function formatQuestion(topic: PlanTopic, questionIndexWithinTopic: number): string {
+/** Deterministic template question — also the fallback used whenever the LLM call fails. */
+function deterministicQuestion(topic: PlanTopic, questionIndexWithinTopic: number): string {
   const objective = topic.objectives[questionIndexWithinTopic % topic.objectives.length];
   return `On day ${topic.day} ("${topic.title}"), one of the objectives was to ${lowerFirst(objective)}. Walk me through that.`;
+}
+
+function normalizeWords(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .split(/\s+/)
+      .filter(Boolean),
+  );
+}
+
+function jaccardSimilarity(a: string, b: string): number {
+  const setA = normalizeWords(a);
+  const setB = normalizeWords(b);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const word of setA) if (setB.has(word)) intersection++;
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+function isTooSimilarToAny(question: string, priorQuestions: string[]): boolean {
+  return priorQuestions.some((q) => jaccardSimilarity(question, q) >= SIMILARITY_THRESHOLD);
+}
+
+async function requestQuestionFromLlm(params: {
+  candidate: Candidate;
+  seniorityTier: SeniorityTier;
+  topic: PlanTopic;
+  objective: string;
+  priorQuestions: string[];
+}): Promise<string> {
+  const result = await callJSON({
+    system: questionSystemPrompt(),
+    user: questionUserPrompt({
+      candidateName: params.candidate.member.name,
+      jobRole: params.candidate.member.jobRole,
+      seniorityTier: params.seniorityTier,
+      day: params.topic.day,
+      dayTitle: params.topic.title,
+      objective: params.objective,
+      tools: params.topic.tools,
+      intent: params.topic.intent,
+      priorQuestions: params.priorQuestions,
+    }),
+    schema: questionResponseSchema,
+  });
+  return result.question.trim();
+}
+
+/**
+ * Generates the next question. Tries Groq first (if configured), falling back
+ * to the deterministic template on any failure — a missing key, a network
+ * error, or a question that's too similar to one already asked (retried once
+ * with the prior questions listed, then falls back rather than looping).
+ */
+async function generateQuestion(params: {
+  candidate: Candidate;
+  seniorityTier: SeniorityTier;
+  topic: PlanTopic;
+  questionIndexWithinTopic: number;
+  priorQuestions: string[];
+}): Promise<string> {
+  const objective = params.topic.objectives[params.questionIndexWithinTopic % params.topic.objectives.length];
+  const fallback = deterministicQuestion(params.topic, params.questionIndexWithinTopic);
+
+  if (!isLlmConfigured()) return fallback;
+
+  try {
+    let question = await requestQuestionFromLlm({ ...params, objective });
+    if (isTooSimilarToAny(question, params.priorQuestions)) {
+      question = await requestQuestionFromLlm({ ...params, objective });
+      if (isTooSimilarToAny(question, params.priorQuestions)) {
+        return fallback;
+      }
+    }
+    return question;
+  } catch {
+    return fallback;
+  }
+}
+
+function priorAgentQuestions(session: Session): string[] {
+  return session.transcript.filter((t) => t.role === "agent").map((t) => t.content);
 }
 
 function questionsBeforeTopic(plan: InterviewPlan, topicIndex: number): number {
@@ -31,11 +119,17 @@ function withTurn(session: Session, turn: Turn): Session {
   return { ...session, transcript: [...session.transcript, turn] };
 }
 
-export function startInterview(candidate: Candidate, sessionId: string): TurnResult {
+export async function startInterview(candidate: Candidate, sessionId: string): Promise<TurnResult> {
   const profile = analyseCandidate(candidate);
   const plan = buildPlan(profile);
   const firstTopic = plan.topics[0];
-  const question = formatQuestion(firstTopic, 0);
+  const question = await generateQuestion({
+    candidate,
+    seniorityTier: profile.seniorityTier,
+    topic: firstTopic,
+    questionIndexWithinTopic: 0,
+    priorQuestions: [],
+  });
   const reply = `Welcome, ${candidate.member.name}. Let's begin your interview.\n\n${question}`;
 
   const session: Session = {
@@ -54,14 +148,21 @@ export function startInterview(candidate: Candidate, sessionId: string): TurnRes
 }
 
 /** Advances past the just-recorded answer: next question in-topic, next topic, or completion. */
-function advance(session: Session): TurnResult {
+async function advance(session: Session): Promise<TurnResult> {
   const plan = session.plan;
   const currentTopic = plan.topics[session.topicIndex];
   const questionsBefore = questionsBeforeTopic(plan, session.topicIndex);
   const questionWithinTopic = session.questionsAsked - questionsBefore;
+  const seniorityTier = analyseCandidate(session.candidate).seniorityTier;
 
   if (questionWithinTopic < currentTopic.questionsAllotted) {
-    const question = formatQuestion(currentTopic, questionWithinTopic);
+    const question = await generateQuestion({
+      candidate: session.candidate,
+      seniorityTier,
+      topic: currentTopic,
+      questionIndexWithinTopic: questionWithinTopic,
+      priorQuestions: priorAgentQuestions(session),
+    });
     const nextSession = withTurn(
       { ...session, questionsAsked: session.questionsAsked + 1 },
       { role: "agent", content: question, day: currentTopic.day },
@@ -79,7 +180,13 @@ function advance(session: Session): TurnResult {
   }
 
   const nextTopic = plan.topics[nextTopicIndex];
-  const question = formatQuestion(nextTopic, 0);
+  const question = await generateQuestion({
+    candidate: session.candidate,
+    seniorityTier,
+    topic: nextTopic,
+    questionIndexWithinTopic: 0,
+    priorQuestions: priorAgentQuestions(session),
+  });
   const askedDays = session.askedDays.includes(nextTopic.day)
     ? session.askedDays
     : [...session.askedDays, nextTopic.day];
@@ -90,7 +197,7 @@ function advance(session: Session): TurnResult {
   return { session: nextSession, reply: question, done: false };
 }
 
-export function nextTurn(session: Session, message: string): TurnResult {
+export async function nextTurn(session: Session, message: string): Promise<TurnResult> {
   // Idempotent: a turn after completion replays the cached feedback rather than
   // advancing or regenerating anything.
   if (session.phase === "done") {
