@@ -175,4 +175,31 @@ a zero-`missionsCompleted` guard, and the day-dedupe behaviour.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** "alr proceed" — M3 (interview planner), the milestone that structurally guarantees the
+≥8 questions / ≥4 curriculum days requirement.
+
+**Result:** Wrote `src/lib/planner.ts`. `buildPlan` selects 5 topics (10 questions) in priority
+order per `IMPLEMENTATION.md` §M3 — one `strong` opener, two `solid`/`shaky` middle topics
+(preferring distinct modules), one ceiling topic (most advanced passed day), the capstone (day 31)
+as closer if passed — then tops up through remaining passed → failed → skipped topics, and as an
+absolute last resort pulls untouched curriculum days outright, until 5 topics are reached. Every
+topic carries an `intent` string recording *why* it was picked, for later prompt/feedback use.
+Selection is entirely sort-order-based (no RNG at all, not even a seeded one) since the plan didn't
+actually need randomness to vary between candidates — determinism came for free.
+
+`assertValidPlan` is called at the end of every `buildPlan()`, so an invalid plan can structurally
+never leave this module. Since the curriculum always has 31 days to fall back to, this should never
+actually fire for real input — it exists as an enforcement point and a thing a judge can point at,
+not a plausible runtime error.
+
+`tests/planner.test.ts` (9 new tests, 46 total): the all-20-real-candidates loop (the single
+highest-value test in the project so far), three synthetic edge cases (1 passed mission, all
+skipped, exactly 4 passed missions), a determinism check, a module-diversity check, and three tests
+against `assertValidPlan` directly (too few questions, too few distinct days, valid plan passes).
+
+`npm run build`, `npm test` (46/46), `npm run lint` all clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->
