@@ -66,24 +66,45 @@ Time estimates assume AI-assisted work and include testing and commit.
 
 ## Milestone map
 
-| # | Milestone | Est. | Ends with |
-|---|---|---|---|
-| 0 | Repo, skeleton, first deploy | 45 min | Live URL serving a placeholder |
-| 1 | Data layer + typed loaders | 45 min | Curriculum and candidates parsed and validated |
-| 2 | Candidate analysis | 60 min | Profile → per-topic signals, tested on all 20 |
-| 3 | Interview planner | 75 min | Guaranteed-valid plan for every candidate |
-| 4 | Session store | 45 min | State survives across requests, Redis + memory |
-| 5 | **API route, deterministic** | 90 min | **Full spec compliance, no LLM** |
-| 6 | Groq integration | 60 min | Real questions, fallback intact |
-| 7 | Adaptive follow-ups | 75 min | Answers actually steer the interview |
-| 8 | LLM feedback synthesis | 60 min | Personalised structured feedback |
-| 9 | Guardrails + resilience | 60 min | Survives abuse, rate limits, junk input |
-| 10 | Chat frontend | 75 min | Usable UI at `/` |
-| 11 | Polish pass | 75 min | Something judges enjoy looking at |
-| 12 | Docs + submission | 45 min | Submitted |
+**Status key:** ✅ done, pushed, and verified live on the deployed URL · ⬜ not started.
+Update this table (and only this table — the sections below stay as the plan, not a diary) at the
+end of every milestone, right before committing. Detailed narration of what actually happened lives
+in `PROMPTS.md`, per-commit.
+
+| # | Milestone | Est. | Ends with | Status |
+|---|---|---|---|---|
+| 0 | Repo, skeleton, first deploy | 45 min | Live URL serving a placeholder | ✅ [`64bff56`](https://github.com/saisathvik-06/InterviewIQ/commit/64bff56) |
+| 1 | Data layer + typed loaders | 45 min | Curriculum and candidates parsed and validated | ✅ [`4ab1414`](https://github.com/saisathvik-06/InterviewIQ/commit/4ab1414) |
+| 2 | Candidate analysis | 60 min | Profile → per-topic signals, tested on all 20 | ✅ [`4520f37`](https://github.com/saisathvik-06/InterviewIQ/commit/4520f37) |
+| 3 | Interview planner | 75 min | Guaranteed-valid plan for every candidate | ✅ [`7952ed5`](https://github.com/saisathvik-06/InterviewIQ/commit/7952ed5) |
+| 4 | Session store | 45 min | State survives across requests, Redis + memory | ✅ [`427412b`](https://github.com/saisathvik-06/InterviewIQ/commit/427412b) |
+| 5 | **API route, deterministic** | 90 min | **Full spec compliance, no LLM** | ✅ [`bccce17`](https://github.com/saisathvik-06/InterviewIQ/commit/bccce17) |
+| 6 | Groq integration | 60 min | Real questions, fallback intact | ✅ [`b6a2286`](https://github.com/saisathvik-06/InterviewIQ/commit/b6a2286) |
+| 7 | Adaptive follow-ups | 75 min | Answers actually steer the interview | ⬜ next up |
+| 8 | LLM feedback synthesis | 60 min | Personalised structured feedback | ⬜ |
+| 9 | Guardrails + resilience | 60 min | Survives abuse, rate limits, junk input | ⬜ |
+| 10 | Chat frontend | 75 min | Usable UI at `/` | ⬜ |
+| 11 | Polish pass | 75 min | Something judges enjoy looking at | ⬜ |
+| 12 | Docs + submission | 45 min | Submitted | ⬜ |
 
 Total ≈ 13 hours of focused work against a ~48-hour window. The slack is deliberate — see
 [Risk register](#risk-register).
+
+**Known deviations from this plan so far**, for anyone picking this up cold — full detail in
+`PROMPTS.md`, dated entries:
+- M1 skipped a standalone `types.ts`; types are inferred directly from the zod schemas in
+  `curriculum.ts`/`candidate.ts` instead.
+- M4's `Session` type omitted the `notes: TopicNote[]` field from the original plan — not needed
+  until M7, shape wasn't decided yet, added when M7 actually needs it.
+- A real infra bug was found and fixed outside any milestone: the Vercel project's Framework Preset
+  was set to "Other" instead of "Next.js" (likely stuck from an early import), which made the entire
+  live site 404 despite successful builds. Fixed in the Vercel dashboard directly — no code change,
+  so no commit for it.
+
+**Working process, agreed with Sai Sathvik** (also in `docs/hackathon-brief.md`): build one
+milestone, report what changed and how to verify/test it (calling out anything better checked
+manually), wait for local testing + explicit approval, *then* commit and push — never commit
+unprompted, never start the next milestone unprompted.
 
 ---
 

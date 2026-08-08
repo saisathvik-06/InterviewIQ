@@ -317,4 +317,21 @@ a warm follow-up turn came back in 0.885s — comfortably under the ~3s target.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** A friend will take over from M7 onward, using Claude on the same account but a separate
+session/device. Asked for the handoff procedure.
+
+**Result:** Explained that Claude Code sessions aren't shared live across devices even on one
+account, but that's fine by design — `CLAUDE.md` → `docs/hackathon-brief.md` already carries full
+context for a cold session. Closed one real gap before handoff: `IMPLEMENTATION.md`'s milestone
+table had no status tracking, so a new session would've had to cross-reference git log to figure out
+what was done. Added a status column (✅/⬜) with a commit link per finished milestone, a "known
+deviations from this plan" list (the `types.ts` skip from M1, the deferred `notes` field from M4,
+and the Vercel Framework Preset bug — a real infra issue found and fixed outside any milestone, with
+no corresponding commit since it was a dashboard setting, not code), and a restated one-paragraph
+version of the working process (build → report → wait for approval → commit, never unprompted) so
+a different person driving a different AI session follows the same rules without being re-told.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->
