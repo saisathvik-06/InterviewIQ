@@ -13,7 +13,7 @@ vi.mock("openai", () => {
   };
 });
 
-import { callJSON, isLlmConfigured, LlmError } from "@/lib/llm";
+import { callJSON, isLlmConfigured, LlmError, resetCircuitBreakerForTests } from "@/lib/llm";
 
 function completionWith(content: string) {
   return { choices: [{ message: { content } }] };
@@ -23,10 +23,12 @@ const schema = z.object({ question: z.string().min(1) });
 
 beforeEach(() => {
   mockCreate.mockReset();
+  resetCircuitBreakerForTests();
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  resetCircuitBreakerForTests();
 });
 
 describe("callJSON", () => {
@@ -92,6 +94,45 @@ describe("callJSON", () => {
     mockCreate.mockRejectedValueOnce(new Error("rate limited"));
     await expect(callJSON({ system: "s", user: "u", schema })).rejects.toThrow(LlmError);
     expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes maxTokens through to the API call, defaulting when not specified", async () => {
+    vi.stubEnv("GROQ_API_KEY", "fake-key");
+    mockCreate.mockResolvedValueOnce(completionWith('{"question":"x"}'));
+    await callJSON({ system: "s", user: "u", schema, maxTokens: 150 });
+    expect(mockCreate.mock.calls[0][0].max_tokens).toBe(150);
+
+    mockCreate.mockResolvedValueOnce(completionWith('{"question":"y"}'));
+    await callJSON({ system: "s", user: "u", schema });
+    expect(mockCreate.mock.calls[1][0].max_tokens).toBeGreaterThan(0);
+  });
+});
+
+describe("callJSON — daily quota circuit breaker", () => {
+  it("skips the network call entirely once a 'tokens per day' 429 has been seen, until the parsed reset time", async () => {
+    vi.stubEnv("GROQ_API_KEY", "fake-key");
+    mockCreate.mockRejectedValueOnce(
+      new Error(
+        "Rate limit reached for model `llama-3.3-70b-versatile` ... on tokens per day (TPD): Limit 100000, Used 99964, Requested 61. Please try again in 100s.",
+      ),
+    );
+    await expect(callJSON({ system: "s", user: "u", schema })).rejects.toThrow(LlmError);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+
+    // A second call, immediately after — should fail fast without touching the network at all.
+    await expect(callJSON({ system: "s", user: "u", schema })).rejects.toThrow(LlmError);
+    expect(mockCreate).toHaveBeenCalledTimes(1); // still 1, not 2
+  });
+
+  it("does not trip the circuit breaker on an unrelated failure (e.g. a per-minute/request rate limit)", async () => {
+    vi.stubEnv("GROQ_API_KEY", "fake-key");
+    mockCreate.mockRejectedValueOnce(new Error("Rate limit reached ... on requests per minute. Please try again in 2s."));
+    await expect(callJSON({ system: "s", user: "u", schema })).rejects.toThrow(LlmError);
+
+    mockCreate.mockResolvedValueOnce(completionWith('{"question":"still works"}'));
+    const result = await callJSON({ system: "s", user: "u", schema });
+    expect(result.question).toBe("still works");
+    expect(mockCreate).toHaveBeenCalledTimes(2); // the second call actually hit the network
   });
 });
 

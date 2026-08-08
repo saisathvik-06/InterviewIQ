@@ -134,6 +134,7 @@ export async function buildFeedback(session: Session): Promise<Feedback> {
         askedDays: session.askedDays,
       }),
       schema: feedbackResponseSchema,
+      maxTokens: 700, // summary + up to 5 bullets in each of 3 arrays — genuinely needs more room than a single question
     });
 
     const feedback: Feedback = {

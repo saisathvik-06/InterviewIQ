@@ -91,6 +91,7 @@ async function requestQuestionFromLlm(params: {
       priorQuestions: params.priorQuestions,
     }),
     schema: questionResponseSchema,
+    maxTokens: 200, // a single interview question — keeps the free-tier daily quota from draining fast
   });
   return result.question.trim();
 }
@@ -185,6 +186,7 @@ async function decideNextAction(params: {
           .map((t) => ({ role: t.role, content: t.content })),
       }),
       schema: decisionResponseSchema,
+      maxTokens: 300, // assessment + action + one reply — no need for the default budget
     });
   } catch (err) {
     console.warn("Answer assessment failed, using deterministic fallback (safe direction: advance).", err);

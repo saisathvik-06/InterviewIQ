@@ -38,6 +38,39 @@ function stripCodeFences(text: string): string {
   return fenced ? fenced[1] : trimmed;
 }
 
+const DEFAULT_MAX_TOKENS = 400;
+const MAX_CIRCUIT_BREAKER_MS = 5 * 60 * 1000; // never disable calls for longer than this in one go
+
+// Circuit breaker for the Groq free tier's daily token cap (100k TPD). Hit repeatedly during
+// real testing: once exhausted, every call was still attempted over the network, waited out a
+// full round trip, and only then fell back — slow, and pointless since the cap can't clear
+// mid-request. Once we see the specific "tokens per day" 429, skip the network call entirely
+// until Groq's own reported reset time passes.
+let quotaExhaustedUntil = 0;
+
+function parseRetryAfterMs(message: string): number | null {
+  const match = message.match(/try again in\s+(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i);
+  if (!match) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  const totalMs = ((hours * 60 + minutes) * 60 + seconds) * 1000;
+  return totalMs > 0 ? totalMs : null;
+}
+
+function noteIfDailyQuotaExhausted(message: string): void {
+  if (!/tokens per day/i.test(message)) return;
+  const retryMs = parseRetryAfterMs(message);
+  const waitMs = Math.min(retryMs ?? MAX_CIRCUIT_BREAKER_MS, MAX_CIRCUIT_BREAKER_MS);
+  quotaExhaustedUntil = Date.now() + waitMs;
+  console.warn(`Groq daily token quota exhausted — skipping LLM calls for ~${Math.round(waitMs / 1000)}s.`);
+}
+
+/** Test-only: clears the circuit breaker so test cases don't leak state into each other. */
+export function resetCircuitBreakerForTests(): void {
+  quotaExhaustedUntil = 0;
+}
+
 /**
  * Calls Groq expecting a single JSON object matching `schema`. On invalid
  * JSON or a schema mismatch, retries once telling the model what was wrong;
@@ -48,9 +81,14 @@ export async function callJSON<T>(params: {
   system: string;
   user: string;
   schema: z.ZodType<T>;
+  maxTokens?: number;
 }): Promise<T> {
   if (!isLlmConfigured()) {
     throw new LlmError("GROQ_API_KEY not configured");
+  }
+
+  if (Date.now() < quotaExhaustedUntil) {
+    throw new LlmError("Groq daily token quota known-exhausted — skipping network call until it resets");
   }
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -74,12 +112,15 @@ export async function callJSON<T>(params: {
         messages,
         response_format: { type: "json_object" },
         temperature: 0.7,
+        max_tokens: params.maxTokens ?? DEFAULT_MAX_TOKENS,
       });
       raw = completion.choices[0]?.message?.content ?? "";
     } catch (err) {
       // Network/API-level failure, after the SDK's own retry is exhausted.
       // Don't retry again at this layer — fail fast to the caller's fallback.
-      throw new LlmError(`Groq request failed: ${(err as Error).message}`);
+      const message = (err as Error).message;
+      noteIfDailyQuotaExhausted(message);
+      throw new LlmError(`Groq request failed: ${message}`);
     }
 
     let parsedJson: unknown;

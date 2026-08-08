@@ -488,4 +488,61 @@ pattern as M7/M8.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** M10 — chat frontend, so a judge can run an interview without touching `curl`. Then,
+across follow-up messages: verify it works, diagnose why a live response looked mechanical, add
+resilience against the Groq free-tier daily quota given how easily it's exhausted during real
+testing, and make the interviewer's replies sound more like a person reacting to an answer rather
+than a neutral segue.
+
+**Result — the UI itself:** `src/app/api/candidates/route.ts` (new, `GET` returning all 20
+candidates), `src/components/CandidatePicker.tsx`, `src/components/Chat.tsx`,
+`src/components/FeedbackPanel.tsx` (all new), `src/app/page.tsx` (rewritten to orchestrate
+picking → interviewing → done). Session id generated client-side (`crypto.randomUUID()`); all
+state lives in React, nothing persisted, matching the spec's explicit out-of-scope note on
+persistent history. `Chat.tsx` covers the plan's edge cases: input/button disabled while a request
+is in flight (no double-submit), a distinct message for session-expiry (404) vs. a network-failure
+banner with a retry button that resends the exact same message, and auto-scroll to the newest
+message.
+
+**Verified in an actual headless browser**, not just a clean build — no browser tool was
+preinstalled, so installed Playwright into the scratchpad (the project itself stays free of a new
+dependency) and drove it against a locally-hosted production build. Confirmed: all 20 candidate
+cards render, starting an interview produces a real Groq-generated question, sending an answer
+clears the input and shows a reply, a full interview reaches the feedback panel, the restart flow
+returns cleanly to the picker, and zero console errors or React hydration warnings across two
+separate driven sessions. Incidentally caught M7's redirect logic firing correctly live (an
+intentionally off-topic test answer got "I'd like to get back to the original question...").
+
+**A real gap found via this testing, not hypothetical:** hammering the app today (my red-teaming +
+manual testing + this UI verification) exhausted the Groq free tier's 100,000-tokens/day quota
+repeatedly. Confirmed via the actual 429 response: `Limit 100000, Used 99975, Requested 386`. Two
+things made this worse than it needed to be: (1) no `max_tokens` cap existed on any Groq call, so
+completions could run arbitrarily long; (2) every turn still attempted a real network round-trip
+even when already known-exhausted, waiting out a doomed request before falling back. Fixed both in
+`src/lib/llm.ts`: `callJSON` now accepts `maxTokens` (200 for questions, 300 for the M7 decision
+call, 700 for feedback — set per-call-site based on actual output size needed), and a circuit
+breaker parses Groq's own `"try again in Xh Ym Zs"` from the specific "tokens per day" error and
+skips the network call entirely until that time passes (capped at 5 minutes so a misparse can't
+disable the LLM for too long) — verified live: it fired for real (`Groq daily token quota
+exhausted — skipping LLM calls for ~168s.`) during this same testing session. Deliberately scoped
+tight to the daily-cap error only; an unrelated per-minute rate limit still retries normally next
+turn. `tests/llm.test.ts` gained 4 tests: `maxTokens` passthrough, the breaker tripping and
+skipping the network on the next call, and — the important negative case — an unrelated rate-limit
+message *not* tripping it.
+
+**Tone:** added an explicit instruction to `decisionSystemPrompt()` in `src/lib/prompts.ts` — react
+genuinely to answer quality before moving on ("Excellent, you've hit the nail on the head" for a
+precise answer, "Not quite" for an incorrect one, "You're on the right track, but..." for a vague
+one), with instruction to vary the exact wording so it doesn't read as scripted. Couldn't get a
+clean live before/after comparison of this specific change — the quota was too depleted by the time
+it landed for a reliable second real call — so this is verified by direct inspection of the prompt
+text sent to the model (shown to Sai Sathvik) plus the existing mocked test suite, not a live
+transcript. Flagged this honestly rather than claiming a live verification that didn't actually
+happen.
+
+`npm test`: 130/130 (up from 127 after M9). `npm run build` and `npm run lint` both clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

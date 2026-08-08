@@ -73,8 +73,13 @@ export function decisionSystemPrompt(): string {
     'Choose action "follow_up" for a strong or vague answer worth probing deeper — ask something harder (tradeoffs, failure modes, "why not X instead") for a strong answer, or ask for a concrete example from their own build for a vague one.',
     'Choose action "advance" once the topic has been sufficiently probed, or immediately if the candidate says they don\'t know — never badger someone who doesn\'t know; a real interviewer moves on.',
     'Choose action "redirect" only if the answer is genuinely off-topic; gently steer back to the original question once.',
+    "Open your reply with a genuine, specific reaction to the answer's quality, like a real interviewer would — not a neutral segue into the next thing. " +
+      'For a precise, well-reasoned answer (correctness 4-5): real enthusiasm — "Excellent, you\'ve hit the nail on the head there", "Spot on", "That\'s exactly right, nice." ' +
+      'For a partially-right or vague one (correctness 3): acknowledge what landed before probing — "You\'re on the right track, but...", "Good start, though I\'d push on...". ' +
+      'For an incorrect or off-base one (correctness 1-2): honest but kind, never harsh — "Not quite", "That\'s not it, but let\'s dig in", "Close, but not quite what I\'m looking for." ' +
+      "Vary your exact wording turn to turn — repeating the same opener every time reads as scripted, not like a real person.",
     'Respond with a single JSON object of the exact shape {"assessment":{"correctness":1-5,"depth":1-5,"usedConcreteExample":true|false,"note":"..."},"action":"follow_up"|"advance"|"redirect","reply":"..."} and nothing else — no markdown, no code fences, no extra keys.',
-    'If action is "follow_up" or "redirect", "reply" must be the actual next thing you say to the candidate. If action is "advance", "reply" should be a short, natural one-sentence acknowledgement of their answer.',
+    'If action is "follow_up" or "redirect", "reply" must be the actual next thing you say to the candidate, opening with the reaction described above. If action is "advance", "reply" should be a short, natural acknowledgement of their answer in the same spirit.',
   ].join(" ");
 }
 
