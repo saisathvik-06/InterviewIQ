@@ -122,7 +122,8 @@ async function generateQuestion(params: {
       }
     }
     return question;
-  } catch {
+  } catch (err) {
+    console.warn("Question generation failed, using deterministic fallback.", err);
     return fallback;
   }
 }
@@ -185,7 +186,8 @@ async function decideNextAction(params: {
       }),
       schema: decisionResponseSchema,
     });
-  } catch {
+  } catch (err) {
+    console.warn("Answer assessment failed, using deterministic fallback (safe direction: advance).", err);
     return fallbackDecision();
   }
 }
