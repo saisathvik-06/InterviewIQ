@@ -149,4 +149,30 @@ would have failed to resolve. Added a matching `resolve.alias` entry.
 
 ---
 
+### 2026-08-08 — Claude Code (Sonnet 5)
+**Prompt:** "k start with next milestone" — M2 (candidate analysis).
+
+**Result:** Wrote `src/lib/analysis.ts`: `classifyMission` (strong/solid/shaky/failed/skipped per
+the attempts thresholds in `IMPLEMENTATION.md` §M2), `classifySeniority` (junior/mid/senior/principal
+by years of experience), and `analyseCandidate` producing a `CandidateProfile` with per-topic
+signals, `firstTryRate`, and `consistency`, deduping any repeated mission `day` entries (first
+record wins).
+
+Hit and fixed a real TypeScript narrowing bug: the initial skip-check
+(`"skipped" in mission && mission.skipped`) doesn't narrow the union in the `else` branch, because
+negating a `&&` produces an ambiguous `||` that the type checker can't resolve back to a single
+excluded branch — `npm run build` caught this at the type-check step (3 errors) before it ever hit a
+test. Fixed with an explicit `mission is Extract<Mission, {skipped: true}>` type guard function
+instead of the inline compound condition.
+
+Added `tests/analysis.test.ts` (23 new tests, 37 total across the suite): table-driven boundary
+tests for the attempts thresholds (3 vs. 4) and seniority tiers, all 20 real candidates classified
+with no throws, specific assertions against CAND-018 (first-try-everything → all `strong`), CAND-010
+(struggling → correct `failed`/`shaky`/`solid` mix), CAND-011 (5 skipped topics counted correctly),
+a zero-`missionsCompleted` guard, and the day-dedupe behaviour.
+
+`npm run build`, `npm test` (37/37), `npm run lint` all clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->
