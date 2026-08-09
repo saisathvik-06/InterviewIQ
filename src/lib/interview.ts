@@ -339,6 +339,11 @@ async function handleAnswer(session: Session, currentTopic: PlanTopic): Promise<
   if (action === "redirect" && session.redirectedInTopic) {
     action = "advance";
   }
+  // If follow_up or redirect came back with no reply text (LLM skipped it despite schema),
+  // downgrade to advance so we never send a blank message bubble to the candidate.
+  if ((action === "follow_up" || action === "redirect") && !decision.reply) {
+    action = "advance";
+  }
 
   if (action === "follow_up") {
     const nextSession = withTurn(

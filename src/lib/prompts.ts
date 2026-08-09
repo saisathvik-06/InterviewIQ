@@ -68,7 +68,11 @@ export const decisionResponseSchema = z.object({
     note: z.string().min(1),
   }),
   action: z.enum(["follow_up", "advance", "redirect"]),
-  reply: z.string().min(1),
+  // Allow empty string — the LLM sometimes omits the reply on advance actions despite being
+  // told not to. Accepting an empty reply here lets us keep the real correctness scores
+  // rather than discarding the whole response and falling back to fallbackDecision() which
+  // resets scores to 1/1. interview.ts fills in a score-aware fallback phrase if reply is empty.
+  reply: z.string(),
 });
 
 export function decisionSystemPrompt(): string {
