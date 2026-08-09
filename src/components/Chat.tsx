@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Candidate } from "@/lib/candidate";
 import type { Feedback } from "@/lib/session";
+import type { InterviewProgress } from "@/components/ProgressBar";
 
 interface ChatMessage {
   role: "agent" | "candidate";
@@ -15,10 +16,12 @@ export function Chat({
   candidate,
   sessionId,
   onDone,
+  onProgress,
 }: {
   candidate: Candidate;
   sessionId: string;
   onDone: (feedback: Feedback) => void;
+  onProgress?: (progress: InterviewProgress) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -49,6 +52,7 @@ export function Chat({
       if (!res.ok) throw new Error(`Couldn't start the interview (HTTP ${res.status}).`);
       const data = await res.json();
       setMessages([{ role: "agent", content: data.reply }]);
+      if (data.progress) onProgress?.(data.progress);
       setStatus("idle");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Couldn't start the interview.");
@@ -83,6 +87,7 @@ export function Chat({
         onDone(data.feedback);
         return;
       }
+      if (data.progress) onProgress?.(data.progress);
       setStatus("idle");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Something went wrong sending that answer.");

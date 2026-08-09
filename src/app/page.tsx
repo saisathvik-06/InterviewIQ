@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { CandidateBrief } from "@/components/CandidateBrief";
 import { CandidatePicker } from "@/components/CandidatePicker";
 import { Chat } from "@/components/Chat";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
+import { ProgressBar, type InterviewProgress } from "@/components/ProgressBar";
 import type { Candidate } from "@/lib/candidate";
 import type { Feedback } from "@/lib/session";
 
@@ -14,11 +16,13 @@ export default function Home() {
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [progress, setProgress] = useState<InterviewProgress | null>(null);
 
   function handleSelect(selected: Candidate) {
     setCandidate(selected);
     setSessionId(crypto.randomUUID());
     setFeedback(null);
+    setProgress(null);
     setPhase("interviewing");
   }
 
@@ -31,6 +35,7 @@ export default function Home() {
     setCandidate(null);
     setSessionId(null);
     setFeedback(null);
+    setProgress(null);
     setPhase("picking");
   }
 
@@ -55,12 +60,11 @@ export default function Home() {
 
         {phase === "interviewing" && candidate && sessionId && (
           <>
-            <p className="w-full text-sm text-zinc-500 dark:text-zinc-400">
-              Interviewing{" "}
-              <span className="font-medium text-zinc-700 dark:text-zinc-200">{candidate.member.name}</span> —{" "}
-              {candidate.member.jobRole}
-            </p>
-            <Chat candidate={candidate} sessionId={sessionId} onDone={handleDone} />
+            <div className="flex w-full max-w-2xl flex-col gap-3">
+              <CandidateBrief candidate={candidate} />
+              {progress && <ProgressBar progress={progress} />}
+            </div>
+            <Chat candidate={candidate} sessionId={sessionId} onDone={handleDone} onProgress={setProgress} />
           </>
         )}
 

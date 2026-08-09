@@ -545,4 +545,53 @@ happen.
 
 ---
 
+### 2026-08-09 — Claude Code (Sonnet 5)
+**Prompt:** Picked up the project cold in a new session/machine (clone, install, read `CLAUDE.md` →
+`docs/hackathon-brief.md` → `IMPLEMENTATION.md` → `PROMPTS.md`, supplied the real `GROQ_API_KEY` /
+Upstash keys for `.env.local`). Asked to continue from the next `⬜` milestone — M11, polish pass —
+one milestone at a time, same working process as before: implement, test/build/lint clean, report
+back for manual verification, wait for explicit approval before committing.
+
+**Result:** Implemented the two highest-value items the milestone's own rationale calls out —
+making the ≥8/≥4 guarantee and the personalisation visible to a judge without reading code — plus
+the leftover `<title>` bug:
+- `src/components/ProgressBar.tsx` (new) — "Question X of Y", a fill bar, and a pill per distinct
+  curriculum day covered so far, flagging if still under the 4-day minimum.
+- `src/components/CandidateBrief.tsx` (new) — role, years experience, passed/failed/skipped mission
+  counts, first-try rate, shown above the chat during the interview.
+- `src/app/api/interview/route.ts` — added a `progress: {questionsAsked, questionsTarget,
+  daysCovered}` field to the two in-progress response shapes only. Deliberately left the final
+  `done:true` payload untouched — `tests/route.contract.test.ts` asserts that response has *exactly*
+  `{done, feedback, reply}` and no more, so progress data had to stop short of it.
+- `src/components/Chat.tsx` — takes an `onProgress` callback and forwards each response's progress
+  field up to the page.
+- `src/app/page.tsx` — renders `CandidateBrief` + `ProgressBar` above the chat while interviewing.
+- `src/app/layout.tsx` — real `<title>`("InterviewIQ — AI Technical Interviewer") and meta
+  description, replacing the `create-next-app` placeholder that had survived untouched since M0.
+- `src/components/CandidatePicker.tsx` — loading state is now a skeleton grid instead of plain
+  "Loading candidates…" text.
+- `.claude/launch.json` (new, not app code) — a dev-server launch config so the assistant's browser
+  tool could preview the running app; harmless to keep for future sessions.
+
+One TypeScript snag: `missions.filter((m) => !isSkipped(m) && m.passed)` didn't narrow the mission
+union for the type checker (a plain boolean guard doesn't propagate through a function call the way
+a direct `"passed" in m` check does), caught immediately by `npm run build`'s type-check step and
+fixed by switching to the `in` check directly in `CandidateBrief.tsx`.
+
+**Verified two ways.** Automated: `npm test` 130/130 unchanged (no test file needed updating — the
+existing contract test's exact-key assertion only covers the final response, which wasn't touched),
+`npm run build` clean, `npm run lint` clean. Manual: opened the picker in a real browser (all 20
+candidates render, tab title correct), then drove a **full interview end-to-end against the real
+Groq + Upstash keys** for CAND-018 (Diane Foster) via `curl` — `progress.daysCovered` grew turn by
+turn to `[7, 31, 8, 10, 12]` (5 distinct days, above the ≥4 floor), and the final response was
+exactly `{reply, done, feedback}` with feedback citing specific days by name. The interactive
+browser session (click-through) dropped mid-verification due to a tooling issue on this machine, not
+an app bug, so the click-through itself was left for Sai Sathvik to do locally rather than claimed
+as done.
+
+`npm test`: 130/130 (unchanged from M10 — no new tests were needed for this milestone). `npm run
+build` and `npm run lint` both clean.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

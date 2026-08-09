@@ -23,6 +23,20 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
+/**
+ * Surfaced only on in-progress responses (never on the final `done:true` payload,
+ * which stays exactly spec-shaped — see the "no extra keys" contract test). Lets the
+ * UI show "Question X of Y" and days covered without re-deriving it client-side,
+ * where the plan and transcript aren't available.
+ */
+function progressOf(session: Session) {
+  return {
+    questionsAsked: session.questionsAsked,
+    questionsTarget: session.plan.totalQuestions,
+    daysCovered: session.askedDays,
+  };
+}
+
 /** Ends the session gracefully when the turn cap is hit, reusing any already-cached feedback. */
 async function endSessionAtTurnCap(session: Session) {
   const doneSession: Session = { ...session, phase: "done" };
@@ -69,7 +83,7 @@ async function handlePost(request: Request) {
     }
     const result = await startInterview(candidate, sessionId);
     await store.set(result.session);
-    return NextResponse.json({ reply: result.reply, done: result.done });
+    return NextResponse.json({ reply: result.reply, done: result.done, progress: progressOf(result.session) });
   }
 
   const parsed = turnRequestSchema.safeParse(body);
@@ -106,7 +120,7 @@ async function handlePost(request: Request) {
   if (result.done) {
     return NextResponse.json({ reply: result.reply, done: true, feedback: result.feedback });
   }
-  return NextResponse.json({ reply: result.reply, done: false });
+  return NextResponse.json({ reply: result.reply, done: false, progress: progressOf(result.session) });
 }
 
 /**

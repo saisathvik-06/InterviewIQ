@@ -34,7 +34,20 @@ export function CandidatePicker({ onSelect }: { onSelect: (candidate: Candidate)
   }
 
   if (!candidates) {
-    return <div className="text-sm text-zinc-500 dark:text-zinc-400">Loading candidates…</div>;
+    return (
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-live="polite">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex animate-pulse flex-col gap-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+          >
+            <div className="h-4 w-2/3 rounded bg-zinc-200 dark:bg-zinc-800" />
+            <div className="h-3 w-1/2 rounded bg-zinc-200 dark:bg-zinc-800" />
+            <div className="mt-2 h-3 w-3/4 rounded bg-zinc-200 dark:bg-zinc-800" />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   return (
