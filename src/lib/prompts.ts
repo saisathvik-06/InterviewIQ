@@ -34,6 +34,8 @@ export function questionUserPrompt(params: {
   tools: string[];
   intent: string;
   priorQuestions: string[];
+  /** Recent conversation turns — lets the question build naturally on what has already been said. */
+  recentTranscript?: { role: string; content: string }[];
 }): string {
   const lines = [
     candidateProfileLine(params),
@@ -42,9 +44,15 @@ export function questionUserPrompt(params: {
     `Objective to probe: ${params.objective}`,
     `Why this topic was picked for this candidate: ${params.intent}`,
   ];
+  if (params.recentTranscript && params.recentTranscript.length > 0) {
+    lines.push(
+      "Recent conversation so far — use this to ask a question that flows naturally from what has already been discussed, references specific things the candidate said where relevant, and avoids repeating ground already covered:",
+      ...params.recentTranscript.map((t) => `${t.role === "agent" ? "Interviewer" : "Candidate"}: ${t.content}`),
+    );
+  }
   if (params.priorQuestions.length > 0) {
     lines.push(
-      "Questions already asked earlier in this interview — do not repeat these or ask something too similar:",
+      "Questions already asked — do not repeat these or ask something too similar:",
       ...params.priorQuestions.map((q, i) => `${i + 1}. ${q}`),
     );
   }

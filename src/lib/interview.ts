@@ -76,6 +76,7 @@ async function requestQuestionFromLlm(params: {
   topic: PlanTopic;
   objective: string;
   priorQuestions: string[];
+  recentTranscript: Turn[];
 }): Promise<string> {
   const result = await callJSON({
     system: questionSystemPrompt(),
@@ -89,9 +90,12 @@ async function requestQuestionFromLlm(params: {
       tools: params.topic.tools,
       intent: params.topic.intent,
       priorQuestions: params.priorQuestions,
+      recentTranscript: params.recentTranscript
+        .slice(-RECENT_TRANSCRIPT_TURNS)
+        .map((t) => ({ role: t.role, content: t.content })),
     }),
     schema: questionResponseSchema,
-    maxTokens: 200, // a single interview question — keeps the free-tier daily quota from draining fast
+    maxTokens: 200,
   });
   return result.question.trim();
 }
@@ -108,6 +112,7 @@ async function generateQuestion(params: {
   topic: PlanTopic;
   questionIndexWithinTopic: number;
   priorQuestions: string[];
+  recentTranscript: Turn[];
 }): Promise<string> {
   const objective = params.topic.objectives[params.questionIndexWithinTopic % params.topic.objectives.length];
   const fallback = deterministicQuestion(params.topic, params.questionIndexWithinTopic);
@@ -212,6 +217,7 @@ export async function startInterview(candidate: Candidate, sessionId: string): P
     topic: firstTopic,
     questionIndexWithinTopic: 0,
     priorQuestions: [],
+    recentTranscript: [], // no prior turns at the very start
   });
   const reply = `Welcome, ${candidate.member.name}. Let's begin your interview.\n\n${question}`;
 
@@ -253,6 +259,7 @@ async function advanceTopic(session: Session): Promise<TurnResult> {
       topic: currentTopic,
       questionIndexWithinTopic: session.topicQuestionIndex,
       priorQuestions: priorAgentQuestions(session),
+      recentTranscript: session.transcript,
     });
     const nextSession = withTurn(
       { ...session, topicQuestionIndex: session.topicQuestionIndex + 1, questionsAsked: session.questionsAsked + 1 },
@@ -277,6 +284,7 @@ async function advanceTopic(session: Session): Promise<TurnResult> {
     topic: nextTopic,
     questionIndexWithinTopic: 0,
     priorQuestions: priorAgentQuestions(session),
+    recentTranscript: session.transcript,
   });
   const askedDays = session.askedDays.includes(nextTopic.day)
     ? session.askedDays
