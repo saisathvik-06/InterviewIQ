@@ -137,12 +137,15 @@ function withTurn(session: Session, turn: Turn): Session {
   return { ...session, transcript: [...session.transcript, turn] };
 }
 
-/** Safe direction on any LLM failure: score neutrally and always move on, never stall. */
+/** Safe direction on any LLM failure: score at minimum and always move on, never stall.
+ *  Scores of 1 (not 3) so that no-LLM runs don't silently look like passing performance
+ *  in session.notes — a "no idea" answer must not produce a glowing feedback report.
+ */
 function fallbackDecision(): Decision {
   return {
     assessment: {
-      correctness: 3,
-      depth: 3,
+      correctness: 1,
+      depth: 1,
       usedConcreteExample: false,
       note: "Deterministic fallback — LLM unavailable, answer not scored.",
     },

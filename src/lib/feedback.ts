@@ -7,28 +7,60 @@ import type { Feedback, Session } from "@/lib/session";
 const MAX_BULLETS = 5;
 
 /**
- * Builds feedback purely from the plan's topic signals (already known before
- * the interview even started) — no reading of transcript content, since there
- * is no LLM yet to judge answer quality. This is also the fallback used later
- * whenever the LLM-based synthesis (a future milestone) fails.
+ * Builds feedback from plan topic signals AND live session notes (per-answer scores).
+ * If notes are present for a topic, a poor live score (avg ≤ 2 on either axis) overrides
+ * a positive platform signal and moves the topic from Strengths into Gaps. This is what
+ * ensures that a candidate who answers "no idea" to everything is never reported as having
+ * "demonstrated understanding" — even when no LLM is configured.
+ *
+ * Falls back to the plan signal alone for topics with no recorded note (shouldn't normally
+ * happen but guards against edge-cases where a topic was skipped without an answer).
  */
 export function buildDeterministicFeedback(session: Session): Feedback {
   const topics = session.plan.topics;
 
-  const strongTopics = topics.filter((t) => t.signal === "strong");
-  const solidTopics = topics.filter((t) => t.signal === "solid" || t.signal === "shaky");
-  const gapTopics = topics.filter((t) => t.signal === "failed" || t.signal === "skipped");
+  // Build a map of day -> average scores from live interview notes.
+  const notesByDay = new Map<number, { correctness: number[]; depth: number[] }>();
+  for (const note of session.notes) {
+    if (!notesByDay.has(note.day)) notesByDay.set(note.day, { correctness: [], depth: [] });
+    const bucket = notesByDay.get(note.day)!;
+    bucket.correctness.push(note.correctness);
+    bucket.depth.push(note.depth);
+  }
+
+  const avgScore = (vals: number[]) => vals.length === 0 ? null : vals.reduce((a, b) => a + b, 0) / vals.length;
+  const POOR_THRESHOLD = 2; // avg ≤ 2 on either axis → poor live performance
+
+  function livePerformanceIsPoor(day: number): boolean {
+    const bucket = notesByDay.get(day);
+    if (!bucket || bucket.correctness.length === 0) return false;
+    const avgC = avgScore(bucket.correctness)!;
+    const avgD = avgScore(bucket.depth)!;
+    return avgC <= POOR_THRESHOLD || avgD <= POOR_THRESHOLD;
+  }
+
+  // Classify each topic: live poor performance overrides a positive platform signal.
+  const gapTopics = topics.filter(
+    (t) => t.signal === "failed" || t.signal === "skipped" || livePerformanceIsPoor(t.day),
+  );
+  const gapDays = new Set(gapTopics.map((t) => t.day));
+  const strongTopics = topics.filter((t) => t.signal === "strong" && !gapDays.has(t.day));
+  const solidTopics = topics.filter(
+    (t) => (t.signal === "solid" || t.signal === "shaky") && !gapDays.has(t.day),
+  );
 
   const strengths = [...strongTopics, ...solidTopics].map(
     (t) => `Day ${t.day} — ${t.title}: demonstrated understanding during the interview.`,
   );
 
-  const gaps = gapTopics.map(
-    (t) =>
-      `Day ${t.day} — ${t.title}: ${
-        t.signal === "skipped" ? "not yet attempted on the platform" : "did not pass on the platform"
-      }, worth revisiting.`,
-  );
+  const gaps = gapTopics.map((t) => {
+    if (livePerformanceIsPoor(t.day) && t.signal !== "failed" && t.signal !== "skipped") {
+      return `Day ${t.day} — ${t.title}: answers during the interview indicated gaps — worth revisiting.`;
+    }
+    return `Day ${t.day} — ${t.title}: ${
+      t.signal === "skipped" ? "not yet attempted on the platform" : "did not pass on the platform"
+    }, worth revisiting.`;
+  });
 
   const next =
     gapTopics.length > 0
@@ -37,13 +69,13 @@ export function buildDeterministicFeedback(session: Session): Feedback {
 
   const daysCovered = topics.map((t) => t.day).join(", ");
   const strongDays = strongTopics.map((t) => t.day).join(", ");
-  const gapDays = gapTopics.map((t) => t.day).join(", ");
+  const gapDayList = gapTopics.map((t) => t.day).join(", ");
 
   const summary = [
     `Covered ${topics.length} topics across days ${daysCovered} of the cohort.`,
     strongTopics.length > 0 ? `Strongest performance on day${strongTopics.length > 1 ? "s" : ""} ${strongDays}.` : "",
     gapTopics.length > 0
-      ? `Some gaps remain around day${gapTopics.length > 1 ? "s" : ""} ${gapDays}.`
+      ? `Some gaps remain around day${gapTopics.length > 1 ? "s" : ""} ${gapDayList}.`
       : "No major gaps identified from platform history.",
   ]
     .filter(Boolean)
@@ -104,7 +136,9 @@ function contradictsRecordedPerformance(
 ): boolean {
   if (notes.length === 0) return false;
   const average = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
-  const performedPoorly = average(notes.map((n) => n.correctness)) <= 2.5 && average(notes.map((n) => n.depth)) <= 2.5;
+  // Threshold tightened to <= 2 (was <= 2.5) so the fallback score of 1 always triggers this,
+  // while a genuine LLM score of 3 ("answered but shallow") does not produce a false positive.
+  const performedPoorly = average(notes.map((n) => n.correctness)) <= 2 && average(notes.map((n) => n.depth)) <= 2;
   const identifiedNoGaps = feedback.gaps.every((gap) => NO_GAPS_PATTERN.test(gap.trim()));
   return performedPoorly && identifiedNoGaps;
 }
