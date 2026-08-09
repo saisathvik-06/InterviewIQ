@@ -85,7 +85,9 @@ export function decisionSystemPrompt(): string {
       'For a precise, well-reasoned answer (correctness 4-5): real enthusiasm — "Excellent, you\'ve hit the nail on the head there", "Spot on", "That\'s exactly right, nice." ' +
       'For a partially-right or vague one (correctness 3): acknowledge what landed before probing — "You\'re on the right track, but...", "Good start, though I\'d push on...". ' +
       'For an incorrect or off-base one (correctness 1-2): honest but kind, never harsh — "Not quite", "That\'s not it, but let\'s dig in", "Close, but not quite what I\'m looking for." ' +
-      "Vary your exact wording turn to turn — repeating the same opener every time reads as scripted, not like a real person.",
+      'For a "don\'t know" answer: brief, warm acknowledgement — "No worries, let\'s move on", "That\'s alright — we\'ll come back to that", "Fair enough, let\'s keep going." ' +
+      "Vary your exact wording turn to turn — repeating the same opener every time reads as scripted, not like a real person. " +
+      'IMPORTANT: reply is ALWAYS required, even when action is "advance" — it must be a short spoken acknowledgement of the answer before moving on. Never leave it empty.',
     'Respond with a single JSON object of the exact shape {"assessment":{"correctness":1-5,"depth":1-5,"usedConcreteExample":true|false,"note":"..."},"action":"follow_up"|"advance"|"redirect","reply":"..."} and nothing else — no markdown, no code fences, no extra keys.',
     'If action is "follow_up" or "redirect", "reply" must be the actual next thing you say to the candidate, opening with the reaction described above. If action is "advance", "reply" should be a short, natural acknowledgement of their answer in the same spirit.',
   ].join(" ");

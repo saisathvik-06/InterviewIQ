@@ -356,13 +356,22 @@ async function handleAnswer(session: Session, currentTopic: PlanTopic): Promise<
     return { session: nextSession, reply: decision.reply, done: false };
   }
 
-  // When advancing, the decision still contains a natural acknowledgement of the answer
-  // ("Not quite, let's move on", "Spot on — moving ahead", etc.). Prepend it to the next
-  // question so the candidate sees a reaction before the next topic, instead of the reply
-  // being silently discarded and the interview feeling like a cold question machine.
+  // When advancing, prepend the LLM's acknowledgement to the next question so the
+  // candidate hears a reaction before moving on ("Not quite — let's keep going", etc.).
+  // If the LLM returned an empty reply despite being told not to (or the deterministic
+  // fallback fired), use a short hardcoded acknowledgement so the interview never feels
+  // like a cold question machine regardless of LLM availability.
+  const ADVANCE_FALLBACKS = [
+    "That's alright — let's keep going.",
+    "No worries, let's move on.",
+    "Fair enough — moving on.",
+    "Okay, let's continue.",
+    "Understood — let's move ahead.",
+  ];
   const advanced = await advanceTopic(sessionWithNote);
-  if (decision.reply && !advanced.done) {
-    return { ...advanced, reply: `${decision.reply}\n\n${advanced.reply}` };
+  if (!advanced.done) {
+    const ack = decision.reply || ADVANCE_FALLBACKS[session.questionsAsked % ADVANCE_FALLBACKS.length];
+    return { ...advanced, reply: `${ack}\n\n${advanced.reply}` };
   }
   return advanced;
 }
