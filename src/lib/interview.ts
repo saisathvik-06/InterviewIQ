@@ -356,7 +356,15 @@ async function handleAnswer(session: Session, currentTopic: PlanTopic): Promise<
     return { session: nextSession, reply: decision.reply, done: false };
   }
 
-  return advanceTopic(sessionWithNote);
+  // When advancing, the decision still contains a natural acknowledgement of the answer
+  // ("Not quite, let's move on", "Spot on — moving ahead", etc.). Prepend it to the next
+  // question so the candidate sees a reaction before the next topic, instead of the reply
+  // being silently discarded and the interview feeling like a cold question machine.
+  const advanced = await advanceTopic(sessionWithNote);
+  if (decision.reply && !advanced.done) {
+    return { ...advanced, reply: `${decision.reply}\n\n${advanced.reply}` };
+  }
+  return advanced;
 }
 
 export async function nextTurn(session: Session, message: string): Promise<TurnResult> {
