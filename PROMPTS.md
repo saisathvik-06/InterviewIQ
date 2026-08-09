@@ -594,4 +594,39 @@ build` and `npm run lint` both clean.
 
 ---
 
+### 2026-08-09 — Claude Code (Sonnet 5)
+**Prompt:** After approving and pushing M11, asked to continue with M12 — docs + submission, the
+final milestone in `IMPLEMENTATION.md`.
+
+**Result:**
+- `README.md` — rewritten from the M0 stub into the full document the milestone calls for: what the
+  project is, the live URL, a 30-second demo path contrasting CAND-018 (Diane Foster, 31/31
+  first-try) against CAND-010 (Gerald Combs, 3 failed + 2 skipped missions) — the same pairing
+  `IMPLEMENTATION.md`'s M10 section already pointed to as the clearest demonstration of
+  personalisation. Covers the deterministic-control-plane architecture and why, how the ≥8/≥4
+  guarantee is enforced with a direct pointer to `planner.ts`/`tests/planner.test.ts`, the full API
+  contract with working `curl` examples against the live URL, local setup and env vars (including
+  running with neither Groq nor Redis configured), and how to run tests/build/lint/smoke.
+- `scripts/smoke.mjs` (new) — a dependency-free Node script that drives a full interview against a
+  deployed (or local) instance over real HTTP and asserts the contract: candidate list loads, start
+  response shape, the final response is *exactly* `{reply, done, feedback}` with correctly-typed
+  feedback fields, and — using the `progress` field M11 added — that the actual driven interview hit
+  ≥8 questions across ≥4 distinct days. Wired up as `npm run smoke`, optionally taking a target URL.
+- `docs/hackathon-brief.md` — checked off the submission checklist (repo public, live URL working,
+  `PROMPTS.md` present — all now genuinely true) and updated the "Decisions so far" section, which
+  had said "nothing implemented yet" since M0, to point at `IMPLEMENTATION.md`'s status table now
+  that every decision in that table has shipped.
+
+**Verified for real, not just written:** ran `npm run smoke` against the actual **live Vercel URL**
+(not just localhost) — all 15 checks passed, including ≥8/≥4 against a real driven interview (10
+questions, 5 distinct days: 7, 8, 10, 12, 31). Also re-ran `npm test` (130/130), `npm run build`,
+and `npm run lint` clean, and grepped full git history (`git log -p --all | grep -i "gsk_\|api.key"`)
+for leaked secrets — the only match was the checklist line itself describing the grep, no actual key
+ever committed.
+
+`npm test`: 130/130. `npm run build` and `npm run lint` both clean. `npm run smoke` (against the
+live URL): 15/15 checks passed.
+
+---
+
 <!-- Add new entries above this line as the build continues. -->

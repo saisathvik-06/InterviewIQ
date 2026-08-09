@@ -45,9 +45,9 @@ Team changes closed Tuesday, 4 Aug · 11:59 PM IST (message organizers on WhatsA
 Three things must be in place by the deadline. Submissions can be edited as often as you like
 until then; each save replaces the last.
 
-- [ ] **Public GitHub repo** — full project source, public and cloneable. Private repos won't be judged.
-- [ ] **Live deployed URL** — something the judges can open (Vercel, Netlify, any reachable host). A README-only demo does not count.
-- [ ] **AI-usage log** — a `PROMPTS.md` in the repo, or exported chat transcripts. This is how they verify the build was genuinely vibe-coded.
+- [x] **Public GitHub repo** — full project source, public and cloneable. Private repos won't be judged.
+- [x] **Live deployed URL** — something the judges can open (Vercel, Netlify, any reachable host). A README-only demo does not count.
+- [x] **AI-usage log** — a `PROMPTS.md` in the repo, or exported chat transcripts. This is how they verify the build was genuinely vibe-coded.
 
 ---
 
@@ -206,7 +206,8 @@ to choose any frontend, backend, LLM, framework, or architecture.
 
 ## 8. Decisions so far
 
-Chosen by Sai Sathvik; nothing implemented yet, so these are direction rather than commitments.
+Chosen by Sai Sathvik and implemented as described below — see [`IMPLEMENTATION.md`](../IMPLEMENTATION.md)'s
+status table for the commit that shipped each milestone.
 
 | Area | Decision | Rationale |
 |---|---|---|
