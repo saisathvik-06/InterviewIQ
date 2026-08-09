@@ -85,7 +85,7 @@ in `PROMPTS.md`, per-commit.
 | 9 | Guardrails + resilience | 60 min | Survives abuse, rate limits, junk input | ✅ [`d046ba6`](https://github.com/saisathvik-06/InterviewIQ/commit/d046ba6) |
 | 10 | Chat frontend | 75 min | Usable UI at `/` | ✅ [`1ff7577`](https://github.com/saisathvik-06/InterviewIQ/commit/1ff7577) |
 | 11 | Polish pass | 75 min | Something judges enjoy looking at | ✅ [`5358e46`](https://github.com/saisathvik-06/InterviewIQ/commit/5358e46) |
-| 12 | Docs + submission | 45 min | Submitted | ✅ [`PENDING`](https://github.com/saisathvik-06/InterviewIQ/commit/PENDING) |
+| 12 | Docs + submission | 45 min | Submitted | ✅ [`486de1b`](https://github.com/saisathvik-06/InterviewIQ/commit/486de1b) |
 
 Total ≈ 13 hours of focused work against a ~48-hour window. The slack is deliberate — see
 [Risk register](#risk-register).
