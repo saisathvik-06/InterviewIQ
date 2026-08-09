@@ -357,20 +357,43 @@ async function handleAnswer(session: Session, currentTopic: PlanTopic): Promise<
   }
 
   // When advancing, prepend the LLM's acknowledgement to the next question so the
-  // candidate hears a reaction before moving on ("Not quite — let's keep going", etc.).
-  // If the LLM returned an empty reply despite being told not to (or the deterministic
-  // fallback fired), use a short hardcoded acknowledgement so the interview never feels
-  // like a cold question machine regardless of LLM availability.
-  const ADVANCE_FALLBACKS = [
-    "That's alright — let's keep going.",
-    "No worries, let's move on.",
-    "Fair enough — moving on.",
-    "Okay, let's continue.",
-    "Understood — let's move ahead.",
+  // candidate hears a reaction before moving on.
+  // If the LLM returned an empty reply (despite being told not to), fall back to a
+  // hardcoded acknowledgement — but pick one that matches the correctness score so a
+  // great answer never gets a "no worries" and a blank answer never gets "excellent".
+  const FALLBACKS_STRONG = [
+    "Great answer — let's keep going.",
+    "Spot on, moving ahead.",
+    "Excellent — let's continue.",
+    "Nicely done, moving on.",
+    "That's exactly right — let's move ahead.",
   ];
+  const FALLBACKS_MID = [
+    "Good start — let's keep going.",
+    "Alright, moving on.",
+    "Okay, let's continue.",
+    "Got it — let's move ahead.",
+    "Right, let's keep going.",
+  ];
+  const FALLBACKS_WEAK = [
+    "No worries — let's move on.",
+    "That's alright, let's keep going.",
+    "Fair enough — moving on.",
+    "Understood — let's move ahead.",
+    "Okay, let's continue.",
+  ];
+
+  function scoredFallback(correctness: number, idx: number): string {
+    if (correctness >= 4) return FALLBACKS_STRONG[idx % FALLBACKS_STRONG.length];
+    if (correctness >= 3) return FALLBACKS_MID[idx % FALLBACKS_MID.length];
+    return FALLBACKS_WEAK[idx % FALLBACKS_WEAK.length];
+  }
+
   const advanced = await advanceTopic(sessionWithNote);
   if (!advanced.done) {
-    const ack = decision.reply || ADVANCE_FALLBACKS[session.questionsAsked % ADVANCE_FALLBACKS.length];
+    const ack =
+      decision.reply ||
+      scoredFallback(decision.assessment.correctness, session.questionsAsked);
     return { ...advanced, reply: `${ack}\n\n${advanced.reply}` };
   }
   return advanced;
